@@ -14,22 +14,22 @@ class WebsocketDemoEvent implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    public $somedata;
+    public $someData;
 
     /**
      * Create a new event instance.
      *
-     * @return void
+     * @param $someData
      */
-    public function __construct($somedata)
+    public function __construct($someData)
     {
-        $this->somedata = $somedata;
+        $this->someData = $someData;
     }
 
     /**
      * Get the channels the event should broadcast on.
      *
-     * @return \Illuminate\Broadcasting\Channel|array
+     * @return Channel
      */
     public function broadcastOn()
     {

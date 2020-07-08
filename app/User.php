@@ -6,6 +6,9 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
+/**
+ * @property int id
+ */
 class User extends Authenticatable
 {
     use Notifiable;
@@ -36,4 +39,12 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
     ];
+
+    public function messages_between(User $user)
+    {
+        return Message::where(['sender_id' => $this->id, 'recipient_id' => $user->id])
+            ->orWhere(['sender_id' => $user->id, 'recipient_id' => $this->id])
+            ->orderBy('id', 'ASC')->get();
+    }
+
 }
