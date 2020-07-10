@@ -45,8 +45,6 @@ window.Echo = new Echo({
 
 window.Echo.channel('DemoChannel')
     .listen('SendMessage', (e) => {
-
         console.log(e);
-
     });
 

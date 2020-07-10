@@ -37,6 +37,6 @@ class SendMessage implements ShouldBroadcastNow
      */
     public function broadcastOn()
     {
-        return new Channel('DemoChannel');
+        return new PresenceChannel('App.User.' . $this->message->recipient_id);
     }
 }

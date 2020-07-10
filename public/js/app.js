@@ -1966,90 +1966,6 @@ __webpack_require__.r(__webpack_exports__);
 //
 //
 //
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
 
 
 
@@ -2065,13 +1981,52 @@ __webpack_require__.r(__webpack_exports__);
       // { body , componentName }
       messageContent: "",
       users: [],
-      chatWith: null // user
-
+      chatWith: null,
+      // user
+      activeUsers: [],
+      notificationsSounds: ['slack.mp3', 'messenger.mp3', 'sound1.mp3'],
+      typingUser: null,
+      isTyping: false
     };
   },
   mounted: function mounted() {
+    var _this = this;
+
     this.scrollToBottom();
     this.getUsers();
+    window.Echo.join("App.User.".concat(this.auth.id)).listen('SendMessage', function (event) {
+      if (_this.chatWith && event.message.sender_id == _this.chatWith.id) {
+        // User A , B , C -- if B send to A # B -> A
+        // it will appear that C and B send the same message to A # B -> A & C -> A
+        // this if statement avoid this # only B -> A
+        _this.messageList.push({
+          body: {
+            content: event.message.content,
+            created_at: event.message.created_at,
+            userName: 'this.auth.name'
+          },
+          componentName: 'guestMessage'
+        });
+      }
+
+      _this.incrementUnseenMessagesCount(event.message.sender_id);
+
+      _this.fireNotification();
+    }).listenForWhisper('typing', function (user) {
+      _this.typingUser = user;
+      setTimeout(function () {
+        _this.typingUser = null;
+      }, 1500);
+    });
+    window.Echo.join('chat').here(function (activeUsers) {
+      _this.activeUsers = activeUsers;
+    }).joining(function (user) {
+      _this.activeUsers.push(user);
+    }).leaving(function (user) {
+      _this.activeUsers = _this.activeUsers.filter(function (u) {
+        return u.id != user.id;
+      });
+    });
   },
   updated: function updated() {
     this.scrollToBottom();
@@ -2091,34 +2046,74 @@ __webpack_require__.r(__webpack_exports__);
         content: this.messageContent
       });
       this.messageContent = "";
+      this.markMessagesSeen(this.chatWith);
     },
     scrollToBottom: function scrollToBottom() {
       if ($(".direct-chat-messages")[0]) $('.direct-chat-messages').scrollTop($(".direct-chat-messages")[0].scrollHeight);
     },
     getUsers: function getUsers() {
-      var _this = this;
+      var _this2 = this;
 
       axios__WEBPACK_IMPORTED_MODULE_2___default.a.get('/user').then(function (response) {
-        _this.users = response.data;
+        _this2.users = response.data;
       });
     },
     selectUser: function selectUser(user) {
-      var _this2 = this;
+      var _this3 = this;
 
-      this.chatWith = user;
+      this.chatWith = user; // get messages between auth and user
+
       axios__WEBPACK_IMPORTED_MODULE_2___default.a.get("user/messages_between/".concat(user.id)).then(function (response) {
-        _this2.messageList = [];
+        _this3.messageList = [];
         response.data.forEach(function (message_i) {
-          _this2.messageList.push({
+          _this3.messageList.push({
             body: {
               content: message_i.content,
               created_at: message_i.created_at,
-              userName: "Some Name"
+              userName: message_i.sender_id == _this3.auth.id ? _this3.auth.name : _this3.chatWith.name
             },
-            componentName: message_i.sender_id == _this2.auth.id ? 'myMessage' : 'guestMessage'
+            componentName: message_i.sender_id == _this3.auth.id ? 'myMessage' : 'guestMessage'
           });
         });
+      }); // mark the selected user
+
+      this.users.forEach(function (user_i, index) {
+        if (user_i.id == user.id) _this3.users[index].selected = true;else _this3.users[index].selected = false;
       });
+      this.markMessagesSeen(user);
+    },
+    markMessagesSeen: function markMessagesSeen(user) {
+      var _this4 = this;
+
+      this.users.every(function (user_i, index) {
+        if (user_i.id == user.id) {
+          _this4.users[index].unseen_msg_cnt = 0;
+          return false;
+        }
+
+        return true;
+      });
+    },
+    incrementUnseenMessagesCount: function incrementUnseenMessagesCount(sender_id) {
+      var _this5 = this;
+
+      this.users.forEach(function (user_i, index) {
+        if (user_i.id == sender_id) {
+          _this5.users[index].unseen_msg_cnt++;
+          return false;
+        }
+
+        return true;
+      });
+    },
+    sendTypingEvent: function sendTypingEvent() {
+      Echo.join("App.User.".concat(this.chatWith.id)).whisper('typing', this.auth);
+    },
+    fireNotification: function fireNotification() {
+      var sound = this.notificationsSounds[Math.floor(Math.random() * this.notificationsSounds.length)];
+      var src = "/sounds/slack.mp3";
+      var audio = new Audio(src);
+      audio.play();
     }
   },
   computed: {
@@ -48076,23 +48071,16 @@ var render = function() {
     _c("div", { staticClass: "col-md-7" }, [
       _vm.chatWith
         ? _c("div", { staticClass: "card direct-chat direct-chat-primary" }, [
-            _c(
-              "div",
-              {
-                staticClass: "card-header ui-sortable-handle",
-                staticStyle: { cursor: "move" }
-              },
-              [
-                _c("h3", { staticClass: "card-title" }, [
-                  _vm._v("Chat With "),
-                  _c("span", { staticClass: "badge badge-info" }, [
-                    _vm._v(_vm._s(_vm.chatWith.name))
-                  ])
-                ]),
-                _vm._v(" "),
-                _vm._m(0)
-              ]
-            ),
+            _c("div", { staticClass: "card-header ui-sortable-handle" }, [
+              _c("h3", { staticClass: "card-title" }, [
+                _vm._v("Chat With "),
+                _c("span", { staticClass: "badge badge-info" }, [
+                  _vm._v(_vm._s(_vm.chatWith.name))
+                ])
+              ]),
+              _vm._v(" "),
+              _c("div", { staticClass: "card-tools" })
+            ]),
             _vm._v(" "),
             _c(
               "div",
@@ -48112,9 +48100,7 @@ var render = function() {
                     })
                   }),
                   1
-                ),
-                _vm._v(" "),
-                _vm._m(1)
+                )
               ]
             ),
             _vm._v(" "),
@@ -48151,6 +48137,7 @@ var render = function() {
                         },
                         domProps: { value: _vm.messageContent },
                         on: {
+                          keydown: _vm.sendTypingEvent,
                           input: function($event) {
                             if ($event.target.composing) {
                               return
@@ -48160,10 +48147,16 @@ var render = function() {
                         }
                       }),
                       _vm._v(" "),
-                      _vm._m(2)
+                      _vm._m(0)
                     ])
                   ]
-                )
+                ),
+                _vm._v(" "),
+                _vm.typingUser
+                  ? _c("span", { staticClass: "text-muted" }, [
+                      _vm._v(_vm._s(_vm.typingUser.name) + " is typing...")
+                    ])
+                  : _vm._e()
               ]
             )
           ])
@@ -48172,13 +48165,13 @@ var render = function() {
     _vm._v(" "),
     _c("div", { staticClass: "col-lg-5" }, [
       _c(
-        "div",
+        "ul",
         { staticClass: "list-group" },
         [
           _c(
-            "a",
+            "li",
             {
-              staticClass: "list-group-item list-group-item-action active",
+              staticClass: "list-group-item list-group-item-action bg-danger",
               attrs: { href: "#" }
             },
             [_vm._v("\n                Users\n            ")]
@@ -48186,9 +48179,13 @@ var render = function() {
           _vm._v(" "),
           _vm._l(_vm.users, function(user) {
             return _c(
-              "button",
+              "li",
               {
-                staticClass: "list-group-item list-group-item-action",
+                class: {
+                  "list-group-item": true,
+                  "list-group-item-action": true,
+                  active: user.selected
+                },
                 attrs: { href: "#" },
                 on: {
                   click: function($event) {
@@ -48198,8 +48195,29 @@ var render = function() {
               },
               [
                 _vm._v(
-                  "\n                " + _vm._s(user.name) + "\n            "
-                )
+                  "\n                " +
+                    _vm._s(user.name) +
+                    "\n                "
+                ),
+                _vm.activeUsers
+                  .map(function(u) {
+                    return u.id
+                  })
+                  .includes(user.id)
+                  ? _c(
+                      "span",
+                      { staticClass: "badge badge-success badge-pill" },
+                      [_vm._v("active")]
+                    )
+                  : _vm._e(),
+                _vm._v(" "),
+                user.unseen_msg_cnt && user.unseen_msg_cnt > 0
+                  ? _c(
+                      "span",
+                      { staticClass: "badge-danger badge float-right" },
+                      [_vm._v(_vm._s(user.unseen_msg_cnt))]
+                    )
+                  : _vm._e()
               ]
             )
           })
@@ -48214,202 +48232,12 @@ var staticRenderFns = [
     var _vm = this
     var _h = _vm.$createElement
     var _c = _vm._self._c || _h
-    return _c("div", { staticClass: "card-tools" }, [
-      _c(
-        "span",
-        {
-          staticClass: "badge badge-primary",
-          attrs: { "data-toggle": "tooltip", title: "3 New Messages" }
-        },
-        [_vm._v("3")]
-      ),
-      _vm._v(" "),
-      _c(
-        "button",
-        {
-          staticClass: "btn btn-tool",
-          attrs: {
-            type: "button",
-            "data-toggle": "tooltip",
-            title: "Contacts",
-            "data-widget": "chat-pane-toggle"
-          }
-        },
-        [_c("i", { staticClass: "fas fa-comments" })]
-      ),
-      _vm._v(" "),
-      _c(
-        "button",
-        {
-          staticClass: "btn btn-tool",
-          attrs: { type: "button", "data-card-widget": "remove" }
-        },
-        [_c("i", { staticClass: "fas fa-times" })]
-      )
-    ])
-  },
-  function() {
-    var _vm = this
-    var _h = _vm.$createElement
-    var _c = _vm._self._c || _h
-    return _c("div", { staticClass: "direct-chat-contacts" }, [
-      _c("ul", { staticClass: "contacts-list" }, [
-        _c("li", [
-          _c("a", { attrs: { href: "#" } }, [
-            _c("img", {
-              staticClass: "contacts-list-img",
-              attrs: { src: "images/user1-128x128.jpg" }
-            }),
-            _vm._v(" "),
-            _c("div", { staticClass: "contacts-list-info" }, [
-              _c("span", { staticClass: "contacts-list-name" }, [
-                _vm._v(
-                  "\n                                        Count Dracula\n                                        "
-                ),
-                _c("small", { staticClass: "contacts-list-date float-right" }, [
-                  _vm._v("2/28/2015")
-                ])
-              ]),
-              _vm._v(" "),
-              _c("span", { staticClass: "contacts-list-msg" }, [
-                _vm._v("How have you been? I was...")
-              ])
-            ])
-          ])
-        ]),
-        _vm._v(" "),
-        _c("li", [
-          _c("a", { attrs: { href: "#" } }, [
-            _c("img", {
-              staticClass: "contacts-list-img",
-              attrs: { src: "images/user1-128x128.jpg" }
-            }),
-            _vm._v(" "),
-            _c("div", { staticClass: "contacts-list-info" }, [
-              _c("span", { staticClass: "contacts-list-name" }, [
-                _vm._v(
-                  "\n                                        Sarah Doe\n                                        "
-                ),
-                _c("small", { staticClass: "contacts-list-date float-right" }, [
-                  _vm._v("2/23/2015")
-                ])
-              ]),
-              _vm._v(" "),
-              _c("span", { staticClass: "contacts-list-msg" }, [
-                _vm._v("I will be waiting for...")
-              ])
-            ])
-          ])
-        ]),
-        _vm._v(" "),
-        _c("li", [
-          _c("a", { attrs: { href: "#" } }, [
-            _c("img", {
-              staticClass: "contacts-list-img",
-              attrs: { src: "images/user3-128x128.jpg" }
-            }),
-            _vm._v(" "),
-            _c("div", { staticClass: "contacts-list-info" }, [
-              _c("span", { staticClass: "contacts-list-name" }, [
-                _vm._v(
-                  "\n                                        Nadia Jolie\n                                        "
-                ),
-                _c("small", { staticClass: "contacts-list-date float-right" }, [
-                  _vm._v("2/20/2015")
-                ])
-              ]),
-              _vm._v(" "),
-              _c("span", { staticClass: "contacts-list-msg" }, [
-                _vm._v("I'll call you back at...")
-              ])
-            ])
-          ])
-        ]),
-        _vm._v(" "),
-        _c("li", [
-          _c("a", { attrs: { href: "#" } }, [
-            _c("img", {
-              staticClass: "contacts-list-img",
-              attrs: { src: "images/user1-128x128.jpg" }
-            }),
-            _vm._v(" "),
-            _c("div", { staticClass: "contacts-list-info" }, [
-              _c("span", { staticClass: "contacts-list-name" }, [
-                _vm._v(
-                  "\n                                        Nora S. Vans\n                                        "
-                ),
-                _c("small", { staticClass: "contacts-list-date float-right" }, [
-                  _vm._v("2/10/2015")
-                ])
-              ]),
-              _vm._v(" "),
-              _c("span", { staticClass: "contacts-list-msg" }, [
-                _vm._v("Where is your new...")
-              ])
-            ])
-          ])
-        ]),
-        _vm._v(" "),
-        _c("li", [
-          _c("a", { attrs: { href: "#" } }, [
-            _c("img", {
-              staticClass: "contacts-list-img",
-              attrs: { src: "images/user1-128x128.jpg" }
-            }),
-            _vm._v(" "),
-            _c("div", { staticClass: "contacts-list-info" }, [
-              _c("span", { staticClass: "contacts-list-name" }, [
-                _vm._v(
-                  "\n                                        John K.\n                                    "
-                ),
-                _c("small", { staticClass: "contacts-list-date float-right" }, [
-                  _vm._v("1/27/2015")
-                ])
-              ]),
-              _vm._v(" "),
-              _c("span", { staticClass: "contacts-list-msg" }, [
-                _vm._v("Can I take a look at...")
-              ])
-            ])
-          ])
-        ]),
-        _vm._v(" "),
-        _c("li", [
-          _c("a", { attrs: { href: "#" } }, [
-            _c("img", {
-              staticClass: "contacts-list-img",
-              attrs: { src: "images/user1-128x128.jpg" }
-            }),
-            _vm._v(" "),
-            _c("div", { staticClass: "contacts-list-info" }, [
-              _c("span", { staticClass: "contacts-list-name" }, [
-                _vm._v(
-                  "\n                                    Kenneth M.\n                                    "
-                ),
-                _c("small", { staticClass: "contacts-list-date float-right" }, [
-                  _vm._v("1/4/2015")
-                ])
-              ]),
-              _vm._v(" "),
-              _c("span", { staticClass: "contacts-list-msg" }, [
-                _vm._v("Never mind I found...")
-              ])
-            ])
-          ])
-        ])
-      ])
-    ])
-  },
-  function() {
-    var _vm = this
-    var _h = _vm.$createElement
-    var _c = _vm._self._c || _h
     return _c("span", { staticClass: "input-group-append" }, [
       _c(
         "button",
         { staticClass: "btn btn-primary", attrs: { type: "submit" } },
         [
-          _vm._v("\n                      Send "),
+          _vm._v("\n                                Send "),
           _c("i", { staticClass: "fas fa-paper-plane" })
         ]
       )

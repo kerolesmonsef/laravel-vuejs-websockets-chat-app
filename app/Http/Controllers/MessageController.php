@@ -48,7 +48,8 @@ class MessageController extends Controller
             'recipient_id' => $user->id,
             'content' => request('content')
         ]);
-        event(new SendMessage($message));
+        broadcast(new SendMessage($message))->toOthers();
+        auth()->user()->markMessagesSeen($user);
         return response()->json([
             'status' => 'success'
         ]);

@@ -2,17 +2,10 @@
     <div class="row">
         <div class="col-md-7">
             <div class="card direct-chat direct-chat-primary" v-if="chatWith">
-                <div class="card-header ui-sortable-handle" style="cursor: move;">
+                <div class="card-header ui-sortable-handle">
                     <h3 class="card-title">Chat With <span class="badge badge-info">{{ chatWith.name }}</span></h3>
                     <div class="card-tools">
-                        <span data-toggle="tooltip" title="3 New Messages" class="badge badge-primary">3</span>
-                        <button type="button" class="btn btn-tool" data-toggle="tooltip" title="Contacts"
-                                data-widget="chat-pane-toggle">
-                            <i class="fas fa-comments"></i>
-                        </button>
-                        <button type="button" class="btn btn-tool" data-card-widget="remove">
-                            <i class="fas fa-times"></i>
-                        </button>
+
                     </div>
                 </div>
                 <div class="card-body" style="display: block;">
@@ -24,114 +17,37 @@
                         </component>
                     </div>
 
-                    <div class="direct-chat-contacts">
-                        <ul class="contacts-list">
-                            <li>
-                                <a href="#">
-                                    <img class="contacts-list-img" src="images/user1-128x128.jpg">
 
-                                    <div class="contacts-list-info">
-                                        <span class="contacts-list-name">
-                                            Count Dracula
-                                            <small class="contacts-list-date float-right">2/28/2015</small>
-                                        </span>
-                                        <span class="contacts-list-msg">How have you been? I was...</span>
-                                    </div>
-                                </a>
-                            </li>
-                            <li>
-                                <a href="#">
-                                    <img class="contacts-list-img" src="images/user1-128x128.jpg">
-
-                                    <div class="contacts-list-info">
-                                        <span class="contacts-list-name">
-                                            Sarah Doe
-                                            <small class="contacts-list-date float-right">2/23/2015</small>
-                                            </span>
-                                        <span class="contacts-list-msg">I will be waiting for...</span>
-                                    </div>
-                                </a>
-                            </li>
-                            <li>
-                                <a href="#">
-                                    <img class="contacts-list-img" src="images/user3-128x128.jpg">
-
-                                    <div class="contacts-list-info">
-                                        <span class="contacts-list-name">
-                                            Nadia Jolie
-                                            <small class="contacts-list-date float-right">2/20/2015</small>
-                                        </span>
-                                        <span class="contacts-list-msg">I'll call you back at...</span>
-                                    </div>
-                                </a>
-                            </li>
-                            <li>
-                                <a href="#">
-                                    <img class="contacts-list-img" src="images/user1-128x128.jpg">
-
-                                    <div class="contacts-list-info">
-                                        <span class="contacts-list-name">
-                                            Nora S. Vans
-                                            <small class="contacts-list-date float-right">2/10/2015</small>
-                                        </span>
-                                        <span class="contacts-list-msg">Where is your new...</span>
-                                    </div>
-                                </a>
-                            </li>
-                            <li>
-                                <a href="#">
-                                    <img class="contacts-list-img" src="images/user1-128x128.jpg">
-
-                                    <div class="contacts-list-info">
-                                        <span class="contacts-list-name">
-                                            John K.
-                                        <small class="contacts-list-date float-right">1/27/2015</small>
-                                    </span>
-                                        <span class="contacts-list-msg">Can I take a look at...</span>
-                                    </div>
-                                </a>
-                            </li>
-                            <li>
-                                <a href="#">
-                                    <img class="contacts-list-img" src="images/user1-128x128.jpg">
-
-                                    <div class="contacts-list-info">
-                                    <span class="contacts-list-name">
-                                        Kenneth M.
-                                        <small class="contacts-list-date float-right">1/4/2015</small>
-                                    </span>
-                                        <span class="contacts-list-msg">Never mind I found...</span>
-                                    </div>
-                                </a>
-                            </li>
-                        </ul>
-                    </div>
                 </div>
                 <div class="card-footer" style="display: block;">
                     <form action="#" @submit.prevent="sendMessage">
                         <div class="input-group">
-                            <input type="text" v-model="messageContent" placeholder="Type Message ..."
+                            <input type="text" v-model="messageContent" @keydown="sendTypingEvent"
+                                   placeholder="Type Message ..."
                                    class="form-control">
                             <span class="input-group-append">
-                      <button type="submit" class="btn btn-primary">
-                          Send <i class="fas fa-paper-plane"></i>
-                      </button>
-                    </span>
+                                <button type="submit" class="btn btn-primary">
+                                    Send <i class="fas fa-paper-plane"></i>
+                                </button>
+                            </span>
                         </div>
                     </form>
+                    <span class="text-muted" v-if="typingUser">{{ typingUser.name }} is typing...</span>
                 </div>
             </div>
         </div>
         <div class="col-lg-5">
-            <div class="list-group">
-                <a href="#" class="list-group-item list-group-item-action active">
+            <ul class="list-group">
+                <li href="#" class="list-group-item list-group-item-action bg-danger">
                     Users
-                </a>
-                <button v-for="user in users" @click="selectUser(user)" href="#"
-                        class="list-group-item list-group-item-action">
-                    {{ user.name}}
-                </button>
-            </div>
+                </li>
+                <li v-for="user in users" @click="selectUser(user)" href="#"
+                    :class="{ 'list-group-item':true ,'list-group-item-action':true,'active':user.selected }">
+                    {{ user.name }}
+                    <span v-if="activeUsers.map(u => u.id).includes(user.id)" class="badge badge-success badge-pill">active</span>
+                    <span v-if="user.unseen_msg_cnt && user.unseen_msg_cnt > 0" class="badge-danger badge float-right">{{ user.unseen_msg_cnt }}</span>
+                </li>
+            </ul>
         </div>
     </div>
 </template>
@@ -152,11 +68,53 @@
                 messageContent: "",
                 users: [],
                 chatWith: null, // user
+                activeUsers: [],
+                notificationsSounds: ['slack.mp3', 'messenger.mp3', 'sound1.mp3'],
+                typingUser: null,
+                isTyping: false,
             }
         },
         mounted() {
             this.scrollToBottom()
             this.getUsers()
+
+            window.Echo.join(`App.User.${this.auth.id}`).listen('SendMessage', (event) => {
+                if (this.chatWith && event.message.sender_id == this.chatWith.id) {
+                    // User A , B , C -- if B send to A # B -> A
+                    // it will appear that C and B send the same message to A # B -> A & C -> A
+                    // this if statement avoid this # only B -> A
+                    this.messageList.push({
+                        body: {
+                            content: event.message.content,
+                            created_at: event.message.created_at,
+                            userName: 'this.auth.name'
+                        },
+                        componentName: 'guestMessage',
+                    })
+                }
+                this.incrementUnseenMessagesCount(event.message.sender_id)
+                this.fireNotification()
+            }).listenForWhisper('typing', user => {
+                this.typingUser = user;
+
+                setTimeout(() => {
+                    this.typingUser =  null;
+
+                }, 1500);
+            })
+
+            window.Echo.join('chat')
+                .here(activeUsers => {
+                    this.activeUsers = activeUsers
+                })
+                .joining(user => {
+                    this.activeUsers.push(user)
+                })
+                .leaving(user => {
+                    this.activeUsers = this.activeUsers.filter(u => u.id != user.id);
+                })
+
+
         },
         updated() {
             this.scrollToBottom()
@@ -174,7 +132,7 @@
                 })
                 axios.post(`message/store/${this.chatWith.id}`, {content: this.messageContent});
                 this.messageContent = ""
-
+                this.markMessagesSeen(this.chatWith)
             },
             scrollToBottom() {
                 if ($(".direct-chat-messages")[0])
@@ -187,6 +145,8 @@
             },
             selectUser(user) {
                 this.chatWith = user;
+
+                // get messages between auth and user
                 axios.get(`user/messages_between/${user.id}`).then(response => {
                     this.messageList = []
                     response.data.forEach(message_i => {
@@ -194,13 +154,51 @@
                             body: {
                                 content: message_i.content,
                                 created_at: message_i.created_at,
-                                userName: "Some Name",
+                                userName: message_i.sender_id == this.auth.id ? this.auth.name : this.chatWith.name,
                             },
                             componentName: message_i.sender_id == this.auth.id ? 'myMessage' : 'guestMessage',
                         })
                     })
                 })
+
+                // mark the selected user
+                this.users.forEach((user_i, index) => {
+                    if (user_i.id == user.id)
+                        this.users[index].selected = true
+                    else
+                        this.users[index].selected = false
+                })
+
+                this.markMessagesSeen(user)
             },
+            markMessagesSeen(user) {
+                this.users.every((user_i, index) => {
+                    if (user_i.id == user.id) {
+                        this.users[index].unseen_msg_cnt = 0
+                        return false
+                    }
+                    return true
+                })
+            },
+            incrementUnseenMessagesCount(sender_id) {
+                this.users.forEach((user_i, index) => {
+                    if (user_i.id == sender_id) {
+                        this.users[index].unseen_msg_cnt++
+                        return false
+                    }
+                    return true
+                })
+            },
+            sendTypingEvent() {
+                Echo.join(`App.User.${this.chatWith.id}`)
+                    .whisper('typing', this.auth);
+            },
+            fireNotification() {
+                const sound = this.notificationsSounds[Math.floor(Math.random() * this.notificationsSounds.length)];
+                let src = `/sounds/slack.mp3`;
+                let audio = new Audio(src);
+                audio.play();
+            }
         },
         computed: {
             current_date() {
